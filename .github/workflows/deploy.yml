@@ -1,0 +1,27 @@
+name: Deploy to Firebase Hosting # ชื่อ Workflow ของคุณ
+
+on:
+  push:
+    branches:
+      - main # หรือ 'master' ขึ้นอยู่กับชื่อ Branch เริ่มต้นของ Repository คุณ
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest # สภาพแวดล้อมที่ใช้รันโค้ด (เครื่องเสมือน Linux)
+
+    steps:
+      - name: Checkout code # ดึงโค้ดของคุณจาก Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js # ติดตั้ง Node.js บนเครื่องเสมือน
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # คุณสามารถเลือกเวอร์ชัน Node.js ที่เสถียรได้ เช่น '16', '18', '20'
+
+      - name: Install Firebase CLI # ติดตั้ง Firebase CLI บนเครื่องเสมือน
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase # ขั้นตอนการ Deploy เว็บไซต์
+        run: firebase deploy --only hosting --project logisticsinsu # แทนที่ 'logisticsinsu' ด้วย Project ID จริงของคุณ
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }} # ใช้ Secret Key ที่เก็บไว้
