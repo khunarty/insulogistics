@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แดชบอร์ดสรุปผลการวิ่ง</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.x.x/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.x.x/firebase-firestore-compat.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            margin: 0;
+            background-color: #e6edf7; /* Light blue-grey background */
+            color: #333;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .container-fluid {
+            max-width: 1600px; /* Wider container */
+            margin: 25px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); /* More prominent shadow */
+        }
+        h1 {
+            color: #1a3c5a; /* Dark navy */
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        h1::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: #007bff; /* Blue */
+            border-radius: 2px;
+        }
+
+        /* --- Navbar Styles (Top Navigation) --- */
+        .navbar {
+            background-color: #1a3c5a; /* Dark blue */
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex; /* Use Flexbox to align Brand and Menu */
+            justify-content: space-between; /* Distribute Brand to left, Menu to right */
+            align-items: center; /* Vertically center */
+            flex-wrap: wrap; /* Wrap on smaller screens */
+        }
+
+        .navbar .navbar-brand {
+            color: white;
+            font-family: 'Kanit', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            text-decoration: none; /* Remove underline */
+        }
+
+        .navbar .navbar-brand i {
+            margin-right: 10px;
+            font-size: 1.8rem;
+        }
+
+        .navbar-menu {
+            list-style: none; /* Remove bullet point */
+            margin: 0;
+            padding: 0;
+            display: flex; /* Use Flexbox for menu items */
+            gap: 20px; /* Spacing between menu items */
+        }
+
+        .navbar-menu li a {
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 12px; /* Add padding for easier clicking */
+            transition: color 0.3s ease, text-decoration 0.3s ease;
+            display: flex; /* Align icon and text */
+            align-items: center;
+        }
+
+        .navbar-menu li a i {
+            margin-right: 8px; /* Spacing between icon and text */
+        }
+
+        .navbar-menu li a:hover,
+        .navbar-menu li a.active {
+            color: white;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            text-decoration-thickness: 2px;
+        }
+
+        .navbar-menu li a.disabled {
+            color: rgba(255, 255, 255, 0.4); /* Faded color for disabled */
+            pointer-events: none; /* Disable clicks */
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .navbar-menu li a.disabled .tooltip-text {
+            visibility: hidden;
+            width: 120px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 0;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%; /* Tooltip position above link */
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .navbar-menu li a.disabled:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Responsive adjustments for Navbar */
+        @media (max-width: 991.98px) {
+            .navbar {
+                flex-direction: column; /* Stack vertically on small screens */
+                align-items: flex-start;
+            }
+            .navbar-menu {
+                flex-direction: column; /* Vertical menu items */
+                width: 100%;
+                margin-top: 15px;
+                gap: 0; /* Remove original gap */
+            }
+            .navbar-menu li {
+                width: 100%;
+            }
+            .navbar-menu li a {
+                padding: 10px 0;
+                width: 100%;
+                text-align: left;
+            }
+        }
+
+        /* --- Filter Section --- */
+        .filter-section, .analysis-section {
+            background-color: #f8f9fa; /* Light background for filter */
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        .filter-section .form-label, .analysis-section .form-label {
+            font-size: 0.95rem;
+        }
+        .filter-section .btn, .analysis-section .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .filter-section .btn-secondary, .analysis-section .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+        .filter-section .btn-secondary:hover, .analysis-section .btn-secondary:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+        }
+        .filter-section .btn-primary, .analysis-section .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .filter-section .btn-primary:hover, .analysis-section .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #004085;
+        }
+        .filter-section .btn-info, .analysis-section .btn-info {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+            color: white;
+        }
+        .filter-section .btn-info:hover, .analysis-section .btn-info:hover {
+            background-color: #138496;
+            border-color: #117a8b;
+        }
+        .form-control, .form-select {
+            border-radius: 8px;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+        }
+
+        /* --- Stats Cards --- */
+        .stats-card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+            text-align: center;
+            height: 100%; /* Ensures cards in a row have same height */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .stats-card .icon {
+            font-size: 2.5rem;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .stats-card .label {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .stats-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1a3c5a;
+        }
+        .stats-card.fuel-efficiency .icon { color: #28a745; } /* Green */
+        .stats-card.cost-per-km .icon { color: #dc3545; } /* Red */
+        .stats-card.total-cost .icon { color: #ffc107; } /* Yellow */
+
+        /* --- Chart Styling --- */
+        .chart-container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+            margin-bottom: 30px;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* --- Table Styling --- */
+        .table-responsive {
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden; /* To apply border-radius to inner table */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        .table {
+            width: 100%;
+            margin-bottom: 0;
+            border-collapse: separate; /* Required for border-radius on cells */
+            border-spacing: 0;
+        }
+        .table thead th {
+            background-color: #1a3c5a; /* Dark navy */
+            color: #fff;
+            padding: 15px 12px;
+            vertical-align: middle;
+            border-bottom: none;
+            font-weight: 600;
+            font-size: 0.95em;
+            white-space: nowrap;
+        }
+        .table tbody tr:nth-child(even) {
+            background-color: #f8f9fa; /* Alternating row colors */
+        }
+        .table tbody tr:hover {
+            background-color: #e2e6ea; /* Hover effect */
+        }
+        .table tbody td {
+            padding: 12px;
+            vertical-align: middle;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+        .table td.actions {
+            text-align: center;
+        }
+        .table .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85em;
+            border-radius: 6px;
+            margin: 2px;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        .toast {
+            border-radius: 0.75rem;
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            color: #fff;
+            opacity: 1 !important; /* Ensure toast is always visible after show */
+            transform: translateY(0) !important; /* Ensure no unwanted transform */
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        .toast-success {
+            background-color: #28a745;
+        }
+        .toast-error {
+            background-color: #dc3545;
+        }
+        .toast-info {
+            background-color: #17a2b8;
+        }
+        .toast .toast-icon {
+            font-size: 1.25rem;
+            margin-right: 10px;
+        }
+        .toast .toast-body {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a class="navbar-brand" href="index.html">
+            <i class="fas fa-truck-moving"></i> INSULOGISTICS
+        </a>
+        <ul class="navbar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> แดชบอร์ดหลัก</a></li>
+            <li><a href="manage_vehicles.html"><i class="fas fa-truck"></i> จัดการรถและคนขับ</a></li>
+            <li><a href="record_trip.html"><i class="fas fa-clipboard-list"></i> บันทึกเที่ยววิ่ง</a></li>
+            <li><a href="dashboard.html" class="active"><i class="fas fa-chart-line"></i> รายงานภาพรวม</a></li>
+            <li><a href="#" class="disabled"><i class="fas fa-map-marker-alt"></i> ติดตามตำแหน่งรถ <span class="tooltip-text">กำลังพัฒนา</span></a></li>
+            <li><a href="#" class="disabled"><i class="fas fa-cogs"></i> ตั้งค่า <span class="tooltip-text">ฟังก์ชันนี้ยังไม่เปิดใช้งาน</span></a></li>
+        </ul>
+    </nav>
+
+    <div class="container-fluid">
+        <h1>แดชบอร์ดสรุปผลการวิ่ง</h1>
+
+        <div class="filter-section">
+            <h4 class="mb-3 text-center" style="color: #1a3c5a;"><i class="fas fa-filter"></i> ตัวกรองข้อมูล</h4>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="filterDatePreset" class="form-label">ช่วงวันที่</label>
+                    <select class="form-select" id="filterDatePreset">
+                        <option value="last7days">7 วันที่ผ่านมา</option>
+                        <option value="last30days">30 วันที่ผ่านมา</option>
+                        <option value="thisMonth">เดือนปัจจุบัน</option>
+                        <option value="lastMonth">เดือนที่แล้ว</option>
+                        <option value="custom">กำหนดเอง</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filterDateStart" class="form-label">จากวันที่</label>
+                    <input type="date" class="form-control" id="filterDateStart" disabled>
+                </div>
+                <div class="col-md-3">
+                    <label for="filterDateEnd" class="form-label">ถึงวันที่</label>
+                    <input type="date" class="form-control" id="filterDateEnd" disabled>
+                </div>
+                <div class="col-md-3">
+                    <label for="filterLicensePlate" class="form-label">ทะเบียนรถ</label>
+                    <select class="form-select" id="filterLicensePlate">
+                        <option value="">ทั้งหมด</option>
+                        </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filterVehicleType" class="form-label">ประเภทรถ</label>
+                    <select class="form-select" id="filterVehicleType">
+                        <option value="">ทั้งหมด</option>
+                        </select>
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-primary" id="applyFilterBtn"><i class="fas fa-search"></i> แสดงผล</button>
+                    <button type="button" class="btn btn-secondary" id="clearFilterBtn"><i class="fas fa-times-circle"></i> ล้างตัวกรอง</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <i class="fas fa-route icon"></i>
+                    <div class="label">ระยะทางรวม (กม.)</div>
+                    <div class="value" id="totalDistance">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <i class="fas fa-gas-pump icon"></i>
+                    <div class="label">ค่าใช้จ่ายน้ำมันรวม (บ.)</div>
+                    <div class="value" id="totalFuelCost">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <i class="fas fa-money-bill-wave icon"></i>
+                    <div class="label">ค่าใช้จ่ายอื่นๆ รวม (บ.)</div>
+                    <div class="value" id="totalOtherCost">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card total-cost">
+                    <i class="fas fa-dollar-sign icon"></i>
+                    <div class="label">ค่าใช้จ่ายรวมทั้งหมด (บ.)</div>
+                    <div class="value" id="totalOverallCost">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card fuel-efficiency">
+                    <i class="fas fa-fuel-pump-dollar icon"></i>
+                    <div class="label">อัตราสิ้นเปลือง (กม./ลิตร)</div>
+                    <div class="value" id="fuelEfficiency">N/A</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card cost-per-km">
+                    <i class="fas fa-hand-holding-usd icon"></i>
+                    <div class="label">ค่าใช้จ่ายเฉลี่ย (บ./กม.)</div>
+                    <div class="value" id="costPerKm">N/A</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <i class="fas fa-oil-can icon"></i>
+                    <div class="label">รถถึงรอบเปลี่ยน นมค. (คัน)</div>
+                    <div class="value" id="oilChangeDueCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <h5 class="text-center mb-3" style="color: #1a3c5a;">กราฟระยะทางรวมต่อวัน</h5>
+                    <canvas id="distanceChart"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <h5 class="text-center mb-3" style="color: #1a3c5a;">กราฟค่าใช้จ่ายรวมต่อวัน</h5>
+                    <canvas id="costChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="analysis-section">
+            <h4 class="mb-3 text-center" style="color: #1a3c5a;"><i class="fas fa-car-side"></i> วิเคราะห์ข้อมูลรถแต่ละคัน</h4>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label for="analysisLicensePlate" class="form-label">เลือกทะเบียนรถที่ต้องการวิเคราะห์</label>
+                    <select class="form-select" id="analysisLicensePlate">
+                        <option value="">เลือกทะเบียนรถ</option>
+                        </select>
+                </div>
+                <div class="col-md-6 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-primary" id="analyzeSpecificVehicleBtn"><i class="fas fa-chart-bar"></i> วิเคราะห์</button>
+                </div>
+            </div>
+            <div class="row g-3 mt-4" id="specificVehicleStats" style="display: none;">
+                <h5 class="text-center mb-3" style="color: #1a3c5a;">สรุปผลสำหรับ <span id="analyzedPlate"></span></h5>
+                <div class="col-md-4">
+                    <div class="stats-card fuel-efficiency">
+                        <i class="fas fa-fuel-pump-dollar icon"></i>
+                        <div class="label">อัตราสิ้นเปลืองเฉลี่ย (กม./ลิตร)</div>
+                        <div class="value" id="specificFuelEfficiency">N/A</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card cost-per-km">
+                        <i class="fas fa-hand-holding-usd icon"></i>
+                        <div class="label">ค่าใช้จ่ายเฉลี่ย (บ./กม.)</div>
+                        <div class="value" id="specificCostPerKm">N/A</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card">
+                        <i class="fas fa-road icon"></i>
+                        <div class="label">ระยะทางรวมที่วิ่ง</div>
+                        <div class="value" id="specificTotalDistance">0 กม.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <h4 class="mb-3 text-center" style="color: #1a3c5a;"><i class="fas fa-history"></i> เที่ยววิ่งล่าสุด (ตามตัวกรอง)</h4>
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>วันที่</th>
+                        <th>ทะเบียนรถ</th>
+                        <th>ประเภทรถ</th>
+                        <th>ชื่อคนขับ</th>
+                        <th>เลขไมล์เริ่มต้น</th>
+                        <th>เลขไมล์สิ้นสุด</th>
+                        <th>ระยะทาง (กม.)</th>
+                        <th>ค่าน้ำมัน (บ.)</th>
+                        <th>ค่าอื่นๆ (บ.)</th>
+                        <th>รวมค่าใช้จ่าย (บ.)</th>
+                    </tr>
+                </thead>
+                <tbody id="recentTripsTableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Firebase Configuration (Using your provided config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBgZ3QPiUufeJEmKFD_GsecxHDz34CtwJo",
+            authDomain: "logisticsinsu.firebaseapp.com",
+            projectId: "logisticsinsu",
+            storageBucket: "logisticsinsu.firebasestorage.app",
+            messagingSenderId: "239407443769",
+            appId: "1:239407443769:web:9477ead4238227f96902e8",
+            measurementId: "G-Y4BPSWVZN7"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const tripsCollection = db.collection('trips');
+        const vehiclesCollection = db.collection('vehicles');
+
+        // --- DOM Elements ---
+        const filterDatePresetInput = document.getElementById('filterDatePreset');
+        const filterDateStartInput = document.getElementById('filterDateStart');
+        const filterDateEndInput = document.getElementById('filterDateEnd');
+        const filterLicensePlateSelect = document.getElementById('filterLicensePlate');
+        const filterVehicleTypeSelect = document.getElementById('filterVehicleType');
+        const applyFilterBtn = document.getElementById('applyFilterBtn');
+        const clearFilterBtn = document.getElementById('clearFilterBtn');
+
+        const totalDistanceEl = document.getElementById('totalDistance');
+        const totalFuelCostEl = document.getElementById('totalFuelCost');
+        const totalOtherCostEl = document.getElementById('totalOtherCost');
+        const totalOverallCostEl = document.getElementById('totalOverallCost');
+        const fuelEfficiencyEl = document.getElementById('fuelEfficiency');
+        const costPerKmEl = document.getElementById('costPerKm');
+        const oilChangeDueCountEl = document.getElementById('oilChangeDueCount');
+
+        const distanceChartCanvas = document.getElementById('distanceChart').getContext('2d');
+        const costChartCanvas = document.getElementById('costChart').getContext('2d');
+        let distanceChart;
+        let costChart;
+
+        const analysisLicensePlateSelect = document.getElementById('analysisLicensePlate');
+        const analyzeSpecificVehicleBtn = document.getElementById('analyzeSpecificVehicleBtn');
+        const specificVehicleStats = document.getElementById('specificVehicleStats');
+        const analyzedPlateEl = document.getElementById('analyzedPlate');
+        const specificFuelEfficiencyEl = document.getElementById('specificFuelEfficiency');
+        const specificCostPerKmEl = document.getElementById('specificCostPerKm');
+        const specificTotalDistanceEl = document.getElementById('specificTotalDistance');
+
+        const recentTripsTableBody = document.getElementById('recentTripsTableBody');
+
+        // --- Global Variables ---
+        const OIL_CHANGE_INTERVAL = 10000; // Kilometers for oil change interval
+        let allVehicles = []; // Store all vehicle data from Firestore
+        let allTrips = []; // Store all trip data fetched from Firestore
+
+        // --- Toast Notification Function ---
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white border-0 ${type === 'success' ? 'toast-success' : type === 'error' ? 'toast-error' : 'toast-info'}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="toast-icon fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : 'fa-info-circle'}"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            toastContainer.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+            bsToast.show();
+        }
+
+        // --- Date Utility Functions ---
+        function getFormattedDate(date) {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        // --- Populate Filter Options from Firestore ---
+        async function populateFilterOptions() {
+            try {
+                const vehicleSnapshot = await vehiclesCollection.orderBy('licensePlate').get();
+                allVehicles = vehicleSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Populate License Plate filters
+                filterLicensePlateSelect.innerHTML = '<option value="">ทั้งหมด</option>';
+                analysisLicensePlateSelect.innerHTML = '<option value="">เลือกทะเบียนรถ</option>';
+                const vehicleTypes = new Set();
+
+                allVehicles.forEach(vehicle => {
+                    // For filterLicensePlateSelect
+                    let option = document.createElement('option');
+                    option.value = vehicle.licensePlate;
+                    option.textContent = vehicle.licensePlate;
+                    filterLicensePlateSelect.appendChild(option);
+
+                    // For analysisLicensePlateSelect
+                    let analysisOption = document.createElement('option');
+                    analysisOption.value = vehicle.licensePlate;
+                    analysisOption.textContent = vehicle.licensePlate;
+                    analysisLicensePlateSelect.appendChild(analysisOption);
+
+                    if (vehicle.vehicleType) {
+                        vehicleTypes.add(vehicle.vehicleType);
+                    }
+                });
+
+                // Populate Vehicle Type filters
+                filterVehicleTypeSelect.innerHTML = '<option value="">ทั้งหมด</option>';
+                vehicleTypes.forEach(type => {
+                    let option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    filterVehicleTypeSelect.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error("Error populating filter options:", error);
+                showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลรถ', 'error');
+            }
+        }
+
+        // --- Fetch Trip Data from Firestore ---
+        async function fetchTripData(startDate, endDate, licensePlate = '', vehicleType = '') {
+            try {
+                let query = tripsCollection.orderBy('tripDate', 'desc');
+
+                // Filter by date range
+                if (startDate) {
+                    query = query.where('tripDate', '>=', getFormattedDate(startDate));
+                }
+                if (endDate) {
+                    query = query.where('tripDate', '<=', getFormattedDate(endDate));
+                }
+
+                // Filter by license plate
+                if (licensePlate) {
+                    query = query.where('licensePlate', '==', licensePlate);
+                }
+
+                const snapshot = await query.get();
+                let fetchedTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Further filter by vehicle type if specified (client-side, as Firestore doesn't allow OR on different fields easily)
+                if (vehicleType) {
+                    fetchedTrips = fetchedTrips.filter(trip => trip.vehicleType === vehicleType);
+                }
+
+                // Ensure numeric fields are parsed
+                fetchedTrips.forEach(trip => {
+                    trip.startMileage = parseFloat(trip.startMileage) || 0;
+                    trip.endMileage = parseFloat(trip.endMileage) || 0;
+                    trip.fuelCost = parseFloat(trip.fuelCost) || 0;
+                    trip.otherCost = parseFloat(trip.otherCost) || 0;
+                });
+                
+                allTrips = fetchedTrips; // Update global allTrips
+
+            } catch (error) {
+                console.error("Error fetching trip data:", error);
+                showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลเที่ยววิ่ง', 'error');
+                allTrips = []; // Clear data on error
+            }
+        }
+
+        // --- Calculate Summary Statistics ---
+        function updateSummaryStats(trips) {
+            let totalDistance = 0;
+            let totalFuelCost = 0;
+            let totalOtherCost = 0;
+
+            trips.forEach(trip => {
+                const distance = trip.endMileage - trip.startMileage;
+                if (distance > 0) { // Only count positive distances
+                    totalDistance += distance;
+                }
+                totalFuelCost += trip.fuelCost;
+                totalOtherCost += trip.otherCost;
+            });
+
+            const totalOverallCost = totalFuelCost + totalOtherCost;
+            const fuelEfficiency = totalDistance > 0 && totalFuelCost > 0 ? (totalDistance / (totalFuelCost / 30)).toFixed(2) : 'N/A'; // Assuming 30 THB/liter for calculation
+            const costPerKm = totalDistance > 0 ? (totalOverallCost / totalDistance).toFixed(2) : 'N/A';
+
+            totalDistanceEl.textContent = totalDistance.toLocaleString();
+            totalFuelCostEl.textContent = totalFuelCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            totalOtherCostEl.textContent = totalOtherCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            totalOverallCostEl.textContent = totalOverallCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            fuelEfficiencyEl.textContent = fuelEfficiency === 'N/A' ? 'N/A' : `${fuelEfficiency} กม./ลิตร`;
+            costPerKmEl.textContent = costPerKm === 'N/A' ? 'N/A' : `${costPerKm} บ./กม.`;
+
+            // Calculate oil change due count
+            const oilChangeDueVehicles = allVehicles.filter(vehicle => {
+                const mileageSinceLastOilChange = vehicle.currentMileage - (vehicle.lastOilChangeMileage || 0);
+                return mileageSinceLastOilChange >= OIL_CHANGE_INTERVAL;
+            });
+            oilChangeDueCountEl.textContent = oilChangeDueVehicles.length;
+        }
+
+        // --- Prepare Data for Charts ---
+        function prepareChartData(trips) {
+            const dailyData = {}; // { 'YYYY-MM-DD': { distance: 0, cost: 0 } }
+
+            trips.forEach(trip => {
+                const date = trip.tripDate;
+                if (!dailyData[date]) {
+                    dailyData[date] = { distance: 0, cost: 0 };
+                }
+                const distance = trip.endMileage - trip.startMileage;
+                if (distance > 0) {
+                     dailyData[date].distance += distance;
+                }
+                dailyData[date].cost += (trip.fuelCost + trip.otherCost);
+            });
+
+            const sortedDates = Object.keys(dailyData).sort();
+            const distances = sortedDates.map(date => dailyData[date].distance);
+            const costs = sortedDates.map(date => dailyData[date].cost);
+
+            return { labels: sortedDates, distances, costs };
+        }
+
+        // --- Render Charts ---
+        function renderCharts(labels, distances, costs) {
+            // Destroy existing charts if they exist
+            if (distanceChart) distanceChart.destroy();
+            if (costChart) costChart.destroy();
+
+            Chart.register(ChartDataLabels);
+
+            distanceChart = new Chart(distanceChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ระยะทาง (กม.)',
+                        data: distances,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#007bff',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#007bff',
+                        datalabels: {
+                            align: 'end',
+                            anchor: 'end',
+                            display: function(context) {
+                                return context.dataset.data[context.dataIndex] > 0; // Only show if value > 0
+                            },
+                            formatter: function(value) {
+                                return value.toLocaleString();
+                            }
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw.toLocaleString()} กม.`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'ระยะทาง (กม.)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: { display: true, text: 'วันที่' },
+                            ticks: {
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            }
+                        }
+                    }
+                }
+            });
+
+            costChart = new Chart(costChartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ค่าใช้จ่าย (บ.)',
+                        data: costs,
+                        backgroundColor: '#28a745',
+                        borderColor: '#28a745',
+                        borderWidth: 1,
+                        datalabels: {
+                            align: 'end',
+                            anchor: 'end',
+                            display: function(context) {
+                                return context.dataset.data[context.dataIndex] > 0; // Only show if value > 0
+                            },
+                            formatter: function(value) {
+                                return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); // No decimals for currency labels
+                            }
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บ.`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'ค่าใช้จ่าย (บ.)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: { display: true, text: 'วันที่' },
+                            ticks: {
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Render Recent Trips Table ---
+        function renderRecentTripsTable(trips) {
+            recentTripsTableBody.innerHTML = ''; // Clear existing rows
+            const sortedTrips = [...trips].sort((a, b) => new Date(b.tripDate) - new Date(a.tripDate)); // Sort newest first
+            const displayTrips = sortedTrips.slice(0, 10); // Display up to 10 recent trips
+
+            if (displayTrips.length === 0) {
+                recentTripsTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4">ไม่พบข้อมูลเที่ยววิ่งในช่วงนี้</td></tr>`;
+                return;
+            }
+
+            displayTrips.forEach(trip => {
+                const row = recentTripsTableBody.insertRow();
+                row.insertCell().textContent = trip.tripDate;
+                row.insertCell().textContent = trip.licensePlate;
+                row.insertCell().textContent = trip.vehicleType || '';
+                row.insertCell().textContent = trip.driverName || '';
+                row.insertCell().textContent = trip.startMileage.toLocaleString();
+                row.insertCell().textContent = trip.endMileage.toLocaleString();
+                row.insertCell().textContent = (trip.endMileage - trip.startMileage).toLocaleString();
+                row.insertCell().textContent = trip.fuelCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                row.insertCell().textContent = trip.otherCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                row.insertCell().textContent = (trip.fuelCost + trip.otherCost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            });
+        }
+
+
+        // --- Update Dashboard (Main Function to call) ---
+        async function updateDashboard() {
+            const datePreset = filterDatePresetInput.value;
+            let startDate = null;
+            let endDate = null;
+
+            if (datePreset === 'custom') {
+                startDate = filterDateStartInput.value ? new Date(filterDateStartInput.value) : null;
+                endDate = filterDateEndInput.value ? new Date(filterDateEndInput.value) : null;
+            } else {
+                // handleDatePresetChange will set these, but for direct call, ensure they are set
+                // We'll rely on handleDatePresetChange to set these inputs correctly before this function is called
+                // If this function is called directly without preset change, date inputs should already have values
+                startDate = filterDateStartInput.value ? new Date(filterDateStartInput.value) : null;
+                endDate = filterDateEndInput.value ? new Date(filterDateEndInput.value) : null;
+            }
+
+            const selectedLicensePlate = filterLicensePlateSelect.value;
+            const selectedVehicleType = filterVehicleTypeSelect.value;
+
+            // Fetch data from Firestore
+            await fetchTripData(startDate, endDate, selectedLicensePlate, selectedVehicleType);
+            
+            // Filter already handled in fetchTripData for licensePlate and vehicleType (client-side)
+            const filteredTrips = allTrips; // allTrips is already filtered by fetchTripData based on inputs
+
+            updateSummaryStats(filteredTrips);
+            const { labels, distances, costs } = prepareChartData(filteredTrips);
+            renderCharts(labels, distances, costs);
+            renderRecentTripsTable(filteredTrips);
+
+            showToast('อัปเดตข้อมูลแดชบอร์ดเรียบร้อยแล้ว!', 'success');
+        }
+
+        // --- Specific Vehicle Analysis ---
+        async function analyzeSpecificVehicle() {
+            const selectedLicensePlate = analysisLicensePlateSelect.value;
+            if (!selectedLicensePlate) {
+                specificVehicleStats.style.display = 'none';
+                showToast('กรุณาเลือกทะเบียนรถที่ต้องการวิเคราะห์', 'info');
+                return;
+            }
+
+            // Filter trips for the specific vehicle and current date range
+            const startDate = filterDateStartInput.value ? new Date(filterDateStartInput.value) : null;
+            const endDate = filterDateEndInput.value ? new Date(filterDateEndInput.value) : null;
+
+            // Fetch all trips for the selected license plate within the date range
+            await fetchTripData(startDate, endDate, selectedLicensePlate);
+            
+            // allTrips is now filtered for the specific license plate and date range
+            const vehicleTrips = allTrips;
+
+            let totalDistance = 0;
+            let totalFuelCost = 0;
+            let totalOtherCost = 0;
+
+            vehicleTrips.forEach(trip => {
+                const distance = trip.endMileage - trip.startMileage;
+                if (distance > 0) {
+                    totalDistance += distance;
+                }
+                totalFuelCost += trip.fuelCost;
+                totalOtherCost += trip.otherCost;
+            });
+
+            const totalOverallCost = totalFuelCost + totalOtherCost;
+            const fuelEfficiency = totalDistance > 0 && totalFuelCost > 0 ? (totalDistance / (totalFuelCost / 30)).toFixed(2) : 'N/A'; // Assuming 30 THB/liter
+            const costPerKm = totalDistance > 0 ? (totalOverallCost / totalDistance).toFixed(2) : 'N/A';
+
+            analyzedPlateEl.textContent = selectedLicensePlate;
+            specificFuelEfficiencyEl.textContent = fuelEfficiency === 'N/A' ? 'N/A' : `${fuelEfficiency} กม./ลิตร`;
+            specificCostPerKmEl.textContent = costPerKm === 'N/A' ? 'N/A' : `${costPerKm} บ./กม.`;
+            specificTotalDistanceEl.textContent = `${totalDistance.toLocaleString()} กม.`;
+
+            specificVehicleStats.style.display = 'flex'; // Show the stats card
+            showToast(`แสดงข้อมูลวิเคราะห์สำหรับทะเบียน ${selectedLicensePlate} แล้ว`, 'info');
+        }
+
+
+        // --- Date Preset Logic ---
+        function handleDatePresetChange() {
+            const preset = filterDatePresetInput.value;
+            const today = new Date();
+            let startDate = null;
+            let endDate = today; // Default end date to today
+
+            switch (preset) {
+                case 'last7days':
+                    startDate = new Date(today);
+                    startDate.setDate(today.getDate() - 6);
+                    break;
+                case 'last30days':
+                    startDate = new Date(today);
+                    startDate.setDate(today.getDate() - 29);
+                    break;
+                case 'thisMonth':
+                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    break;
+                case 'lastMonth':
+                    startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'custom':
+                    filterDateStartInput.disabled = false;
+                    filterDateEndInput.disabled = false;
+                    // No default dates for custom, rely on user input
+                    startDate = filterDateStartInput.value ? new Date(filterDateStartInput.value) : null;
+                    endDate = filterDateEndInput.value ? new Date(filterDateEndInput.value) : null;
+                    break;
+            }
+
+            if (preset !== 'custom') {
+                filterDateStartInput.value = startDate ? getFormattedDate(startDate) : '';
+                filterDateEndInput.value = endDate ? getFormattedDate(endDate) : '';
+                filterDateStartInput.disabled = true;
+                filterDateEndInput.disabled = true;
+            }
+            
+            updateDashboard(); // Call updateDashboard after dates are set
+        }
+
+
+        // --- Event Listeners ---
+        applyFilterBtn.addEventListener('click', updateDashboard);
+        clearFilterBtn.addEventListener('click', () => {
+            filterDatePresetInput.value = 'last30days'; // Reset to default preset
+            handleDatePresetChange(); // Apply the default preset dates and trigger updateDashboard
+            filterLicensePlateSelect.value = '';
+            filterVehicleTypeSelect.value = '';
+            specificVehicleStats.style.display = 'none'; // Hide specific analysis
+            analysisLicensePlateSelect.value = ''; // Clear analysis selection
+            showToast('ล้างตัวกรองเรียบร้อยแล้ว!', 'info');
+        });
+
+        filterDatePresetInput.addEventListener('change', handleDatePresetChange);
+        // Changed to call analyze directly when select value changes
+        analysisLicensePlateSelect.addEventListener('change', analyzeSpecificVehicle); 
+        // The analyze button itself can now just trigger analysis based on the select value
+        analyzeSpecificVehicleBtn.addEventListener('click', analyzeSpecificVehicle);
+
+
+        // --- Initial Setup ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await populateFilterOptions();
+            // Set default filter dates (last 30 days) and trigger update
+            filterDatePresetInput.value = 'last30days';
+            handleDatePresetChange(); // This will set dates and call updateDashboard
+        });
+
+    </script>
+</body>
+</html>

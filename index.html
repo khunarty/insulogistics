@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INSULOGISTICS | แดชบอร์ดหลัก</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.x.x/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.x.x/firebase-firestore-compat.js"></script>
+    <style>
+        /* --- รูปแบบพื้นฐาน --- */
+        body {
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #e6eef6; /* สีพื้นหลังอ่อนลงเล็กน้อย เพื่อให้ตัดกับสีกรมท่า */
+            display: flex;
+            min-height: 100vh;
+            color: #333;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* --- Navbar (Top Bar) - UPDATED FOR CENTERING --- */
+        .navbar {
+            background-color: #1a3c5a; /* สีกรมท่าเข้ม */
+            color: white;
+            padding: 1rem 2rem;
+            width: 100%;
+            display: flex;
+            justify-content: center; /* จัดกึ่งกลางไอคอนและชื่อแบรนด์ */
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            position: fixed; /* Fixed at the top */
+            top: 0;
+            left: 0;
+            z-index: 1000; /* Ensure it stays on top */
+        }
+
+        .navbar-brand {
+            font-family: 'Kanit', sans-serif; /* ใช้ Kanit สำหรับ Brand */
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-brand i {
+            margin-right: 10px;
+            font-size: 2rem;
+        }
+
+        /* --- Main Content Area --- */
+        .main-content {
+            flex-grow: 1;
+            background-color: #e6eef6; /* ให้พื้นหลังเข้ากับ body */
+            padding: 30px; /* เพิ่ม padding โดยรวม */
+            max-width: 1200px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 100px; /* Adjust for fixed navbar height */
+        }
+
+        .selection-prompt {
+            text-align: center;
+            color: #1a3c5a;
+            margin-bottom: 40px;
+            font-size: 2.2rem;
+            font-weight: 700;
+            position: relative;
+            padding-bottom: 15px;
+        }
+
+        .selection-prompt::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 5px;
+            background-color: #007bff; /* สีฟ้า */
+            border-radius: 3px;
+        }
+
+        /* --- Navigation Cards Grid --- */
+        .nav-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* ปรับขนาดการ์ดอัตโนมัติ */
+            gap: 30px; /* ระยะห่างระหว่างการ์ด */
+            justify-content: center;
+            align-items: stretch; /* ให้การ์ดมีความสูงเท่ากัน */
+            padding: 20px;
+        }
+
+        /* --- Nav Card Styles - UPDATED FOR PROMINENCE AND HOVER GLOW --- */
+        .nav-card {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); /* เงาเริ่มต้นที่ดูมีมิติขึ้น */
+            text-align: center;
+            padding: 35px 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #1a3c5a; /* สีกรมท่าเข้ม */
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+            position: relative;
+            overflow: hidden; /* เพื่อซ่อน tooltip-text เมื่อไม่ได้ hover */
+        }
+
+        .nav-card:hover {
+            transform: translateY(-10px); /* ยกขึ้นอีกเล็กน้อย */
+            background-color: #f0f8ff; /* สีฟ้าอ่อนเมื่อ hover */
+            /* เพิ่ม box-shadow สำหรับเอฟเฟกต์ "แสง" */
+            box-shadow: 
+                0 15px 45px rgba(0, 0, 0, 0.18), /* เงาหลักที่เข้มขึ้น */
+                0 0 25px rgba(0, 123, 255, 0.4); /* แสงสีน้ำเงินเรืองรอง */
+        }
+
+        .nav-card .nav-icon {
+            font-size: 4.5rem; /* ขนาดไอคอนใหญ่ขึ้น */
+            margin-bottom: 20px;
+            color: #007bff; /* สีไอคอนเป็นสีฟ้า */
+            transition: color 0.3s ease;
+        }
+
+        .nav-card:hover .nav-icon {
+            color: #0056b3; /* สีไอคอนเข้มขึ้นเมื่อ hover */
+        }
+
+        .nav-card h3 {
+            font-size: 1.8rem; /* ขนาดหัวข้อใหญ่ขึ้น */
+            font-weight: 700;
+            margin-bottom: 0;
+            color: #333; /* สีข้อความเป็นสีเทาเข้ม */
+        }
+
+        /* --- Disabled Card Styles --- */
+        .nav-card.disabled {
+            background-color: #f2f2f2;
+            color: #999;
+            cursor: not-allowed;
+            pointer-events: none; /* ทำให้คลิกไม่ได้ */
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* เงาสำหรับ disabled card */
+        }
+
+        .nav-card.disabled:hover {
+            transform: none; /* ไม่ให้ยกขึ้นเมื่อ disabled และ hover */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* ไม่แสดงแสงเรืองรอง */
+            background-color: #f2f2f2; /* ไม่มีเปลี่ยนสี */
+        }
+
+        .nav-card.disabled .nav-icon {
+            color: #ccc;
+        }
+
+        .nav-card.disabled h3 {
+            color: #999;
+        }
+
+        .nav-card.disabled .tooltip-text {
+            visibility: hidden;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 8px 0;
+            position: absolute;
+            z-index: 1;
+            bottom: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            transform: translateY(100%); /* ซ่อนไว้ข้างล่าง */
+        }
+
+        .nav-card.disabled:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0); /* เลื่อนขึ้นมาแสดง */
+        }
+
+        /* --- Responsive Adjustments --- */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0.8rem 1rem;
+            }
+            .navbar-brand {
+                font-size: 1.5rem;
+                margin-bottom: 0; /* No need for margin-bottom if centered */
+            }
+            .navbar-brand i {
+                font-size: 1.6rem;
+            }
+            .main-content {
+                padding: 20px;
+                margin-top: 80px; /* Adjust for smaller fixed navbar */
+            }
+            .selection-prompt {
+                font-size: 1.8rem;
+                margin-bottom: 30px;
+            }
+            .nav-card-grid {
+                grid-template-columns: 1fr; /* 1 คอลัมน์สำหรับมือถือ */
+                gap: 20px;
+                padding: 0;
+            }
+            .nav-card {
+                padding: 25px 20px;
+            }
+            .nav-card .nav-icon {
+                font-size: 3.5rem;
+                margin-bottom: 15px;
+            }
+            .nav-card h3 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a class="navbar-brand" href="index.html">
+            <i class="fas fa-truck-moving"></i> INSULOGISTICS
+        </a>
+    </div>
+
+    <div class="main-content">
+        <h2 class="selection-prompt">โปรดเลือกรายการ</h2>
+
+        <section class="navigation-cards">
+            <div class="nav-card-grid">
+                <a href="manage_vehicles.html" class="nav-card">
+                    <i class="fas fa-truck nav-icon"></i>
+                    <h3>จัดการรถและคนขับ</h3>
+                </a>
+                <a href="record_trip.html" class="nav-card">
+                    <i class="fas fa-clipboard-list nav-icon"></i>
+                    <h3>บันทึกเที่ยววิ่ง</h3>
+                </a>
+                <a href="dashboard.html" class="nav-card">
+                    <i class="fas fa-chart-line nav-icon"></i> <h3>รายงานภาพรวม</h3>
+                </a>
+                <a href="#" class="nav-card disabled"> <i class="fas fa-map-marker-alt nav-icon"></i>
+                    <h3>ติดตามตำแหน่งรถ</h3>
+                    <span class="tooltip-text">กำลังพัฒนา</span> </a>
+                <a href="#" class="nav-card disabled"> <i class="fas fa-cogs nav-icon"></i>
+                    <h3>ตั้งค่า</h3>
+                    <span class="tooltip-text">ฟังก์ชันนี้ยังไม่เปิดใช้งาน</span> </a>
+                <a href="#" class="nav-card disabled"> <i class="fas fa-plus-circle nav-icon"></i>
+                    <h3>เพิ่มข้อมูลรถใหม่</h3>
+                    <span class="tooltip-text">ฟังก์ชันนี้ยังไม่เปิดใช้งาน</span> </a>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Firebase Configuration (Replace with your actual Firebase project config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBgZ3QPiUufeJEmKFD_GsecxHDz34CtwJo",
+            authDomain: "logisticsinsu.firebaseapp.com",
+            projectId: "logisticsinsu",
+            storageBucket: "logisticsinsu.firebasestorage.app",
+            messagingSenderId: "239407443769",
+            appId: "1:239407443769:web:9477ead4238227f96902e8",
+            measurementId: "G-Y4BPSWVZN7" 
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        // You can now access Firebase services like:
+        // const db = firebase.firestore();
+        // const auth = firebase.auth();
+        // console.log("Firebase initialized on index.html!"); // For debugging
+    </script>
+</body>
+</html>

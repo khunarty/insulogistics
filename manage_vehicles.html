@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการรถและคนขับ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.x.x/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.x.x/firebase-firestore-compat.js"></script>
+    
+    <style>
+        /* --- รูปแบบทั่วไป & ฟอนต์ --- */
+        body {
+            font-family: 'Kanit', sans-serif;
+            margin: 0;
+            background-color: #e6edf7; /* พื้นหลังสีฟ้า-เทาอ่อน */
+            color: #333;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .container {
+            max-width: 1300px; /* คอนเทนเนอร์กว้างขึ้นเล็กน้อย */
+            margin: 25px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); /* เงาเด่นชัดขึ้น */
+        }
+        h1 {
+            color: #1a3c5a; /* สีกรมท่าเข้ม */
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        h1::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: #007bff; /* สีฟ้า */
+            border-radius: 2px;
+        }
+
+        /* --- Navbar Styles (ปรับตามโครงสร้างที่คุณให้มา) --- */
+        .navbar {
+            background-color: #1a3c5a; /* Dark blue */
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex; /* ใช้ Flexbox เพื่อจัดวาง Brand และ Menu */
+            justify-content: space-between; /* กระจาย Brand ไปซ้าย Menu ไปขวา */
+            align-items: center; /* จัดให้อยู่กึ่งกลางแนวตั้ง */
+            flex-wrap: wrap; /* ให้ห่อเมื่อหน้าจอเล็กลง */
+        }
+
+        .navbar .navbar-brand {
+            color: white;
+            font-family: 'Kanit', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            text-decoration: none; /* เอาขีดเส้นใต้ออก */
+        }
+
+        .navbar .navbar-brand i {
+            margin-right: 10px;
+            font-size: 1.8rem;
+        }
+
+        .navbar-menu {
+            list-style: none; /* ลบ bullet point */
+            margin: 0;
+            padding: 0;
+            display: flex; /* ใช้ Flexbox สำหรับรายการเมนู */
+            gap: 20px; /* ระยะห่างระหว่างรายการเมนู */
+        }
+
+        .navbar-menu li a {
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 12px; /* เพิ่ม padding ให้คลิกง่ายขึ้น */
+            transition: color 0.3s ease, text-decoration 0.3s ease;
+            display: flex; /* จัด icon และ text ให้อยู่ในบรรทัดเดียวกัน */
+            align-items: center;
+        }
+
+        .navbar-menu li a i {
+            margin-right: 8px; /* ระยะห่างระหว่าง icon และ text */
+        }
+
+        .navbar-menu li a:hover,
+        .navbar-menu li a.active {
+            color: white;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            text-decoration-thickness: 2px;
+        }
+
+        .navbar-menu li a.disabled {
+            color: rgba(255, 255, 255, 0.4); /* สีจางลงสำหรับ disabled */
+            pointer-events: none; /* ปิดการคลิก */
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .navbar-menu li a.disabled .tooltip-text {
+            visibility: hidden;
+            width: 120px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 0;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%; /* ตำแหน่ง tooltip เหนือลิงก์ */
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .navbar-menu li a.disabled:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Responsive adjustments for Navbar */
+        @media (max-width: 991.98px) {
+            .navbar {
+                flex-direction: column; /* จัดวางแนวตั้งเมื่อหน้าจอเล็ก */
+                align-items: flex-start;
+            }
+            .navbar-menu {
+                flex-direction: column; /* รายการเมนูแนวตั้ง */
+                width: 100%;
+                margin-top: 15px;
+                gap: 0; /* ลบ gap เดิม */
+            }
+            .navbar-menu li {
+                width: 100%;
+            }
+            .navbar-menu li a {
+                padding: 10px 0;
+                width: 100%;
+                text-align: left;
+            }
+            /* เพื่อให้ปุ่ม burger menu ของ Bootstrap ทำงานได้ (หากยังต้องการใช้) */
+            .navbar-toggler {
+                display: block; /* แสดงปุ่ม toggler */
+            }
+            .navbar-collapse {
+                width: 100%;
+            }
+        }
+        /* ถ้ายังต้องการใช้ Bootstrap's responsive navbar features, อาจจะต้องปรับบางส่วน */
+
+        /* --- ปุ่มหลัก (Add New, Export) --- */
+        .action-buttons {
+            display: flex;
+            justify-content: flex-end; /* ชิดขวา */
+            margin-bottom: 25px;
+            gap: 10px; /* ระยะห่างระหว่างปุ่ม */
+        }
+        .action-buttons .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .action-buttons .btn-primary {
+            background-color: #28a745; /* สีเขียวสำหรับเพิ่มข้อมูล */
+            border-color: #28a745;
+        }
+        .action-buttons .btn-primary:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+        .action-buttons .btn-info {
+            background-color: #17a2b8; /* สีฟ้าอ่อนสำหรับส่งออก */
+            border-color: #17a2b8;
+            color: white;
+        }
+        .action-buttons .btn-info:hover {
+            background-color: #138496;
+            border-color: #117a8b;
+        }
+
+        /* --- ตาราง --- */
+        .table-responsive {
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden; /* เพื่อให้ border-radius ทำงานกับตารางภายใน */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        .table {
+            width: 100%;
+            margin-bottom: 0; /* Remove default margin-bottom */
+            border-collapse: separate; /* Required for border-radius on cells */
+            border-spacing: 0;
+        }
+        .table thead th {
+            background-color: #1a3c5a; /* สีกรมท่าเข้ม */
+            color: #fff;
+            padding: 15px 12px;
+            vertical-align: middle;
+            border-bottom: none; /* Remove default bootstrap border */
+            font-weight: 600;
+            font-size: 0.95em;
+            white-space: nowrap; /* Prevent wrapping in headers */
+        }
+        .table tbody tr:nth-child(even) {
+            background-color: #f8f9fa; /* แถวสลับสี */
+        }
+        .table tbody tr:hover {
+            background-color: #e2e6ea; /* Hover effect */
+        }
+        .table tbody td {
+            padding: 12px;
+            vertical-align: middle;
+            border-top: 1px solid #dee2e6; /* Bootstrap default table border */
+            font-size: 0.9em;
+            white-space: nowrap; /* Prevent wrapping in cells */
+        }
+        .table td.actions {
+            text-align: center;
+        }
+        .table .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85em;
+            border-radius: 6px;
+            margin: 2px;
+        }
+        .table .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #333;
+        }
+        .table .btn-warning:hover {
+            background-color: #e0a800;
+            border-color: #d39e00;
+        }
+        .table .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .table .btn-danger:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+
+        /* --- Modal (ฟอร์มเพิ่ม/แก้ไข) --- */
+        .modal-content {
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            border: none;
+        }
+        .modal-header {
+            background-color: #1a3c5a;
+            color: white;
+            border-bottom: none;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            padding: 20px;
+        }
+        .modal-header .btn-close {
+            color: white;
+            filter: invert(1); /* ทำให้ x เป็นสีขาว */
+        }
+        .modal-title {
+            font-weight: 700;
+            font-size: 1.5em;
+        }
+        .modal-body {
+            padding: 30px;
+        }
+        .modal-body .form-label {
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .modal-body .form-control {
+            border-radius: 8px;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .modal-body .form-control:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+        }
+        .modal-footer {
+            border-top: none;
+            padding: 20px 30px;
+            justify-content: center; /* จัดปุ่มให้อยู่ตรงกลาง */
+            gap: 15px; /* ระยะห่างระหว่างปุ่ม */
+        }
+        .modal-footer .btn {
+            min-width: 120px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .modal-footer .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+            color: white;
+        }
+        .modal-footer .btn-secondary:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+        }
+        .modal-footer .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .modal-footer .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #004085;
+        }
+
+        /* Pagination styles */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 25px;
+        }
+        .pagination .page-item .page-link {
+            border-radius: 8px;
+            margin: 0 4px;
+            color: #007bff;
+            border: 1px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+        .pagination .page-item .page-link:hover {
+            background-color: #e9ecef;
+            color: #0056b3;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        .toast {
+            border-radius: 0.75rem;
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            color: #fff;
+            opacity: 1 !important; /* Ensure toast is always visible after show */
+            transform: translateY(0) !important; /* Ensure no unwanted transform */
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        .toast-success {
+            background-color: #28a745;
+        }
+        .toast-error {
+            background-color: #dc3545;
+        }
+        .toast-info {
+            background-color: #17a2b8;
+        }
+        .toast .toast-icon {
+            font-size: 1.25rem;
+            margin-right: 10px;
+        }
+        .toast .toast-body {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a class="navbar-brand" href="index.html">
+            <i class="fas fa-truck-moving"></i> INSULOGISTICS
+        </a>
+        <ul class="navbar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> แดชบอร์ดหลัก</a></li>
+            <li><a href="manage_vehicles.html" class="active"><i class="fas fa-truck"></i> จัดการรถและคนขับ</a></li>
+            <li><a href="record_trip.html"><i class="fas fa-clipboard-list"></i> บันทึกเที่ยววิ่ง</a></li>
+            <li><a href="dashboard.html"><i class="fas fa-chart-line"></i> รายงานภาพรวม</a></li>
+            <li><a href="#" class="disabled"><i class="fas fa-map-marker-alt"></i> ติดตามตำแหน่งรถ <span class="tooltip-text">กำลังพัฒนา</span></a></li>
+            <li><a href="#" class="disabled"><i class="fas fa-cogs"></i> ตั้งค่า <span class="tooltip-text">ฟังก์ชันนี้ยังไม่เปิดใช้งาน</span></a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>จัดการรถและคนขับ</h1>
+
+        <div class="action-buttons">
+            <button type="button" class="btn btn-info" id="exportExcelBtn">
+                <i class="fas fa-file-excel"></i> ส่งออก Excel
+            </button>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vehicleModal" id="addNewBtn">
+                <i class="fas fa-plus-circle"></i> เพิ่มข้อมูลใหม่
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>ชื่อคนขับ</th>
+                        <th>ทะเบียนรถ</th>
+                        <th>ประเภทรถ</th>
+                        <th>สาขา</th>
+                        <th>วันหมดอายุใบขับขี่</th>
+                        <th>เลขไมล์ล่าสุด (เปลี่ยน นมค.)</th>
+                        <th>เลขไมล์ปัจจุบัน</th>
+                        <th>สถานะน้ำมันเครื่อง</th>
+                        <th class="actions">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="vehicleTableBody">
+                    </tbody>
+            </table>
+        </div>
+
+        <nav aria-label="Page navigation" class="pagination-container">
+            <ul class="pagination" id="paginationControls">
+                </ul>
+        </nav>
+    </div>
+
+    <div class="modal fade" id="vehicleModal" tabindex="-1" aria-labelledby="vehicleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="vehicleModalLabel">เพิ่ม/แก้ไขข้อมูลรถ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="vehicleForm">
+                        <input type="hidden" id="editItemId"> <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="driverName" class="form-label">ชื่อคนขับ</label>
+                                <input type="text" class="form-control" id="driverName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="licensePlate" class="form-label">ทะเบียนรถ</label>
+                                <input type="text" class="form-control" id="licensePlate" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="vehicleType" class="form-label">ประเภทรถ</label>
+                                <select class="form-control" id="vehicleType" required>
+                                    <option value="">เลือกประเภท</option>
+                                    <option value="รถเล็ก">รถเล็ก</option>
+                                    <option value="รถกลาง">รถกลาง</option>
+                                    <option value="รถใหญ่">รถใหญ่</option>
+                                    <option value="รถพ่วง">รถพ่วง</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="branch" class="form-label">สาขา</label>
+                                <select class="form-control" id="branch" required>
+                                    <option value="">เลือกสาขา</option>
+                                    <option value="BB-SPK">BB-SPK</option>
+                                    <option value="SSK">SSK</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="licenseExpiry" class="form-label">วันหมดอายุใบขับขี่</label>
+                                <input type="date" class="form-control" id="licenseExpiry">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="lastOilChangeMileage" class="form-label">เลขไมล์ล่าสุด (เปลี่ยน นมค.)</label>
+                                <input type="number" class="form-control" id="lastOilChangeMileage" min="0" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="currentMileage" class="form-label">เลขไมล์ปัจจุบัน</label>
+                                <input type="number" class="form-control" id="currentMileage" min="0" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary" form="vehicleForm">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Firebase Configuration (Using your provided config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBgZ3QPiUufeJEmKFD_GsecxHDz34CtwJo",
+            authDomain: "logisticsinsu.firebaseapp.com",
+            projectId: "logisticsinsu",
+            storageBucket: "logisticsinsu.firebasestorage.app",
+            messagingSenderId: "239407443769",
+            appId: "1:239407443769:web:9477ead4238227f96902e8",
+            measurementId: "G-Y4BPSWVZN7"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const vehiclesCollection = db.collection('vehicles'); // Collection for vehicles and drivers
+
+        const OIL_CHANGE_INTERVAL = 10000; // Kilometers for oil change interval
+
+        // --- DOM Elements ---
+        const vehicleTableBody = document.getElementById('vehicleTableBody');
+        const vehicleForm = document.getElementById('vehicleForm');
+        const addNewBtn = document.getElementById('addNewBtn');
+        const exportExcelBtn = document.getElementById('exportExcelBtn');
+        const vehicleModal = new bootstrap.Modal(document.getElementById('vehicleModal'));
+
+        // Form fields
+        const editItemIdInput = document.getElementById('editItemId'); // Hidden input for document ID
+        const driverNameInput = document.getElementById('driverName');
+        const licensePlateInput = document.getElementById('licensePlate');
+        const vehicleTypeInput = document.getElementById('vehicleType');
+        const branchInput = document.getElementById('branch');
+        const licenseExpiryInput = document.getElementById('licenseExpiry');
+        const lastOilChangeMileageInput = document.getElementById('lastOilChangeMileage');
+        const currentMileageInput = document.getElementById('currentMileage');
+
+        // Pagination variables
+        const rowsPerPage = 10;
+        let currentPage = 1;
+        let allVehicles = []; // Store all vehicles from Firestore
+
+        // --- Toast Notification Function ---
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white border-0 ${type === 'success' ? 'toast-success' : type === 'error' ? 'toast-error' : 'toast-info'}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="toast-icon fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : 'fa-info-circle'}"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            toastContainer.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+            bsToast.show();
+        }
+
+        // --- Render Table Function (Now uses allVehicles) ---
+        function renderTable() {
+            vehicleTableBody.innerHTML = ''; // Clear existing rows
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const paginatedVehicles = allVehicles.slice(startIndex, endIndex);
+
+            if (paginatedVehicles.length === 0) {
+                vehicleTableBody.innerHTML = `<tr><td colspan="9" class="text-center py-4">ไม่พบข้อมูลรถและคนขับ</td></tr>`;
+                return;
+            }
+
+            paginatedVehicles.forEach(item => {
+                const row = vehicleTableBody.insertRow();
+                row.insertCell().textContent = item.driverName;
+                row.insertCell().textContent = item.licensePlate;
+                row.insertCell().textContent = item.vehicleType;
+                row.insertCell().textContent = item.branch;
+                row.insertCell().textContent = item.licenseExpiry || '-';
+                row.insertCell().textContent = item.lastOilChangeMileage ? item.lastOilChangeMileage.toLocaleString() : '0'; // Display 0 if null/undefined
+                row.insertCell().textContent = item.currentMileage ? item.currentMileage.toLocaleString() : '0'; // Display 0 if null/undefined
+
+                const mileageSinceLastOilChange = (item.currentMileage || 0) - (item.lastOilChangeMileage || 0); // Handle potential null/undefined
+                let oilChangeStatus = '';
+                if (mileageSinceLastOilChange >= OIL_CHANGE_INTERVAL) {
+                    oilChangeStatus = `<span class="badge bg-danger">เกินกำหนด (${(mileageSinceLastOilChange - OIL_CHANGE_INTERVAL).toLocaleString()} กม.)</span>`;
+                } else if (mileageSinceLastOilChange < 0) {
+                    // This case might happen if currentMileage is updated to be less than lastOilChangeMileage (e.g., error in data entry or reset)
+                    oilChangeStatus = `<span class="badge bg-warning">ข้อมูลผิดปกติ</span>`;
+                }
+                else {
+                    const mileageRemaining = OIL_CHANGE_INTERVAL - (mileageSinceLastOilChange % OIL_CHANGE_INTERVAL);
+                    oilChangeStatus = `<span class="badge bg-success">เหลือ ${mileageRemaining.toLocaleString()} กม.</span>`;
+                }
+                row.insertCell().innerHTML = oilChangeStatus;
+
+                const actionsCell = row.insertCell();
+                actionsCell.className = 'actions';
+                actionsCell.innerHTML = `
+                    <button type="button" class="btn btn-warning btn-sm" onclick="populateFormForEdit('${item.id}')">แก้ไข</button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}', '${item.driverName}', '${item.licensePlate}')">ลบ</button>
+                `;
+            });
+            renderPaginationControls();
+        }
+
+        // --- Pagination Controls ---
+        function renderPaginationControls() {
+            const paginationControls = document.getElementById('paginationControls');
+            paginationControls.innerHTML = '';
+            const pageCount = Math.ceil(allVehicles.length / rowsPerPage);
+
+            if (pageCount <= 1 && allVehicles.length <= rowsPerPage) return; // Don't show pagination if only one page or fewer items than rowsPerPage
+
+            // Previous button
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Previous" onclick="changePage(${currentPage - 1})"><span aria-hidden="true">&laquo;</span></a>`;
+            paginationControls.appendChild(prevLi);
+
+            // Page numbers
+            for (let i = 1; i <= pageCount; i++) {
+                const pageLi = document.createElement('li');
+                pageLi.className = `page-item ${currentPage === i ? 'active' : ''}`;
+                pageLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+                paginationControls.appendChild(pageLi);
+            }
+
+            // Next button
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === pageCount ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Next" onclick="changePage(${currentPage + 1})"><span aria-hidden="true">&raquo;</span></a>`;
+            paginationControls.appendChild(nextLi);
+        }
+
+        function changePage(page) {
+            if (page < 1 || page > Math.ceil(allVehicles.length / rowsPerPage)) return;
+            currentPage = page;
+            renderTable();
+        }
+
+        // --- Form Reset and Modal Handling ---
+        function clearForm() {
+            vehicleForm.reset();
+            editItemIdInput.value = ''; // Clear hidden ID
+            document.getElementById('vehicleModalLabel').textContent = 'เพิ่มข้อมูลใหม่'; // Reset modal title
+            // Set currentMileage to 0 if it's not provided or invalid, to prevent NaN
+            currentMileageInput.value = 0;
+            lastOilChangeMileageInput.value = 0;
+            // Reset dropdowns to default empty option
+            vehicleTypeInput.value = '';
+            branchInput.value = '';
+        }
+
+        addNewBtn.addEventListener('click', () => {
+            clearForm(); // Clear form on "Add New"
+            vehicleModal.show(); // Show modal
+        });
+
+        // Event listener for modal hidden to ensure form is reset
+        document.getElementById('vehicleModal').addEventListener('hidden.bs.modal', function () {
+            clearForm();
+        });
+
+
+        // --- Load Data from Firestore (Real-time updates) ---
+        vehiclesCollection.orderBy('driverName').onSnapshot((snapshot) => { // Order by driverName
+            allVehicles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Re-sort to ensure consistency if Firestore order changes or new data added
+            allVehicles.sort((a, b) => (a.driverName || '').localeCompare(b.driverName || '')); 
+            currentPage = 1; // Reset to first page on data update
+            renderTable();
+        }, (error) => {
+            console.error("Error fetching documents: ", error);
+            showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลรถและคนขับ', 'error');
+        });
+
+        // --- Save/Update Item to Firestore ---
+        vehicleForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevent default form submission
+
+            // Validate mileage inputs
+            const lastOilMileage = parseInt(lastOilChangeMileageInput.value);
+            const currentMileage = parseInt(currentMileageInput.value);
+
+            if (isNaN(lastOilMileage) || lastOilMileage < 0 || isNaN(currentMileage) || currentMileage < 0) {
+                showToast('กรุณากรอกเลขไมล์ให้ถูกต้อง (ตัวเลขและไม่ติดลบ)', 'error');
+                return;
+            }
+
+            const newItem = {
+                driverName: driverNameInput.value,
+                licensePlate: licensePlateInput.value,
+                vehicleType: vehicleTypeInput.value,
+                branch: branchInput.value,
+                licenseExpiry: licenseExpiryInput.value || null, // Store null if empty
+                lastOilChangeMileage: lastOilMileage,
+                currentMileage: currentMileage,
+            };
+
+            const itemId = editItemIdInput.value;
+            try {
+                if (itemId) {
+                    // Update existing item
+                    await vehiclesCollection.doc(itemId).update({
+                        ...newItem,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp() // Add update timestamp
+                    });
+                    showToast('แก้ไขข้อมูลเรียบร้อย!', 'success');
+                } else {
+                    // Add new item
+                    await vehiclesCollection.add({
+                        ...newItem,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp() // Add creation timestamp
+                    });
+                    showToast('เพิ่มข้อมูลใหม่เรียบร้อย!', 'success');
+                }
+                vehicleModal.hide(); // Hide modal after successful save
+            } catch (e) {
+                console.error("Error saving document: ", e);
+                showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+            }
+        });
+
+        // --- Populate Form for Edit ---
+        async function populateFormForEdit(itemId) {
+            try {
+                const doc = await vehiclesCollection.doc(itemId).get();
+                if (doc.exists) {
+                    const item = { id: doc.id, ...doc.data() };
+                    editItemIdInput.value = item.id;
+                    driverNameInput.value = item.driverName || '';
+                    licensePlateInput.value = item.licensePlate || '';
+                    vehicleTypeInput.value = item.vehicleType || '';
+                    branchInput.value = item.branch || '';
+                    licenseExpiryInput.value = item.licenseExpiry || ''; // Handle null/undefined
+                    lastOilChangeMileageInput.value = item.lastOilChangeMileage || 0; // Default to 0
+                    currentMileageInput.value = item.currentMileage || 0; // Default to 0
+
+                    document.getElementById('vehicleModalLabel').textContent = 'แก้ไขข้อมูลรถ';
+                    vehicleModal.show();
+                } else {
+                    showToast('ไม่พบข้อมูลที่จะแก้ไข', 'error');
+                }
+            } catch (e) {
+                console.error("Error fetching document for edit: ", e);
+                showToast('เกิดข้อผิดพลาดในการดึงข้อมูลเพื่อแก้ไข', 'error');
+            }
+        }
+
+        // --- Delete Item from Firestore ---
+        async function deleteItem(itemId, driverName, licensePlate) {
+            if (confirm(`คุณต้องการลบข้อมูลของ ${driverName} - ${licensePlate} ใช่หรือไม่?`)) {
+                try {
+                    await vehiclesCollection.doc(itemId).delete();
+                    showToast('ลบข้อมูลเรียบร้อยแล้ว', 'success');
+                } catch (e) {
+                    console.error("Error removing document: ", e);
+                    showToast('เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+                }
+            }
+        }
+
+        // --- Export to Excel ---
+        exportExcelBtn.addEventListener('click', async () => {
+            let dataToExport = [];
+            try {
+                const snapshot = await vehiclesCollection.orderBy('driverName').get(); // Get current data, ordered
+                dataToExport = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (e) {
+                console.error("Error fetching data for export: ", e);
+                showToast('เกิดข้อผิดพลาดในการดึงข้อมูลเพื่อส่งออก', 'error');
+                return;
+            }
+
+            if (dataToExport.length === 0) {
+                showToast('ไม่พบข้อมูลที่จะส่งออก', 'info');
+                return;
+            }
+
+            const dataForExcel = dataToExport.map(item => {
+                const mileageSinceLastOilChange = (item.currentMileage || 0) - (item.lastOilChangeMileage || 0);
+                let oilChangeStatusText = '';
+                if (mileageSinceLastOilChange >= OIL_CHANGE_INTERVAL) {
+                    oilChangeStatusText = `เกินกำหนด (${(mileageSinceLastOilChange - OIL_CHANGE_INTERVAL).toLocaleString()} กม.)`;
+                } else if (mileageSinceLastOilChange < 0) {
+                    oilChangeStatusText = `ข้อมูลผิดปกติ`;
+                }
+                else {
+                    const mileageRemaining = OIL_CHANGE_INTERVAL - (mileageSinceLastOilChange % OIL_CHANGE_INTERVAL);
+                    oilChangeStatusText = `เหลือ ${mileageRemaining.toLocaleString()} กม.`;
+                }
+
+                return [
+                    item.driverName || '',
+                    item.licensePlate || '',
+                    item.vehicleType || '',
+                    item.branch || '',
+                    item.licenseExpiry || '',
+                    item.lastOilChangeMileage || 0,
+                    item.currentMileage || 0,
+                    oilChangeStatusText
+                ];
+            });
+
+            const headers = ['ชื่อคนขับ', 'ทะเบียนรถ', 'ประเภทรถ', 'สาขา', 'วันหมดอายุใบขับขี่', 'เลขไมล์ล่าสุด (เปลี่ยน นมค.)', 'เลขไมล์ปัจจุบัน', 'สถานะน้ำมันเครื่อง'];
+            dataForExcel.unshift(headers); // Add headers as the first row
+
+            const ws = XLSX.utils.aoa_to_sheet(dataForExcel); // Use aoa_to_sheet for array of arrays
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "ข้อมูลรถและคนขับ");
+            XLSX.writeFile(wb, `ข้อมูลรถและคนขับ_${getTodayDateForExcel()}.xlsx`);
+            showToast('ส่งออกข้อมูล Excel เรียบร้อย!', 'success');
+        });
+
+        function getTodayDateForExcel() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}${month}${day}`;
+        }
+
+        // --- Initial Load ---
+        // Data loading is now handled by onSnapshot listener which will trigger renderTable on load.
+        // No explicit loadData call needed here as onSnapshot handles initial load and updates.
+    </script>
+</body>
+</html>
